@@ -18,6 +18,27 @@ const categorySchema = new Schema(
         maxlength: 100,
       },
     },
+    description: {
+      en: {
+        type: String,
+        required: true,
+        trim: true,
+        minlength: 10,
+        maxlength: 1000,
+      },
+      ar: {
+        type: String,
+        required: true,
+        trim: true,
+        minlength: 10,
+        maxlength: 1000,
+      },
+    },
+    image: {
+      type: String,
+      required: true,
+      trim: true,
+    },
   },
   { timestamps: true },
 );
