@@ -1,8 +1,8 @@
 const { default: mongoose } = require("mongoose");
 const Order = require("../models/order");
 const { validationResult } = require("express-validator");
-const Settings = require("../models/settings");
 const ShippingRate = require("../models/shippingRate");
+const Setting = require("../models/settings");
 const calculateSubtotal = require("../utils/calculateSubtotal");
 
 const getOrders = async (req, res, next) => {
@@ -62,8 +62,6 @@ const getOrdersByUserId = async (req, res, next) => {
 
 const addOrder = async (req, res, next) => {
   try {
-    const { items, shippingAddress, nails, government } = req.body;
-
     const results = validationResult(req);
 
     if (!results.isEmpty()) {
@@ -71,6 +69,8 @@ const addOrder = async (req, res, next) => {
         errors: results.array(),
       });
     }
+
+    const { items, shippingAddress, government, nails = 0 } = req.body;
 
     const normalizedGovernment = government.trim().toLowerCase();
 
@@ -81,7 +81,7 @@ const addOrder = async (req, res, next) => {
 
     if (!shippingRate) {
       return res.status(400).json({
-        message: "Invalid or unavailable government",
+        message: "Shipping is not available for this government",
       });
     }
 
@@ -90,11 +90,8 @@ const addOrder = async (req, res, next) => {
     let nailsCost = 0;
 
     if (nails > 0) {
-      const nailSetting = await Settings.findOne({
-        key: "nailCost",
-      });
-
-      const pricePerNail = nailSetting?.values?.price;
+      const setting = await Setting.findOne();
+      const pricePerNail = setting?.nailCost;
 
       if (
         typeof pricePerNail !== "number" ||
@@ -102,12 +99,15 @@ const addOrder = async (req, res, next) => {
         pricePerNail < 0
       ) {
         return res.status(500).json({
-          message: "Nail pricing is not configured correctly",
+          message: "Nail cost is not configured correctly",
         });
       }
 
-      nailsCost = pricePerNail * nails;
+      nailsCost = nails * pricePerNail;
     }
+
+    const shippingCost = shippingRate.price;
+    const total = subtotal + nailsCost + shippingCost;
 
     const order = await Order.create({
       userId: req.userId,
@@ -117,13 +117,13 @@ const addOrder = async (req, res, next) => {
       status: "pending",
       nails,
       nailsCost,
-      shippingCost: shippingRate.price,
       subTotal: subtotal,
-      total: subtotal + nailsCost + shippingRate.price,
+      shippingCost,
+      total,
     });
 
     return res.status(201).json({
-      message: "Order added successfully",
+      message: "Order created successfully",
       order,
     });
   } catch (err) {

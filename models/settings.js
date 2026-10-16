@@ -2,15 +2,10 @@ const { Schema, model } = require("mongoose");
 
 const settingSchema = new Schema(
   {
-    key: {
-      type: String,
+    nailCost: {
+      type: Number,
       required: true,
-      unique: true,
-      trim: true,
-    },
-    values: {
-      type: Schema.Types.Mixed,
-      required: true,
+      min: 0,
     },
   },
   { timestamps: true },

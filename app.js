@@ -8,6 +8,7 @@ const url = process.env.DB_URL;
 const usersRouter = require("./routes/users");
 const productsRouter = require("./routes/products");
 const ordersRouter = require("./routes/orders");
+const settingsRouter = require("./routes/settings");
 
 mongoose
   .connect(url)
@@ -23,6 +24,7 @@ app.use(cors());
 app.use("/api/users", usersRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/orders", ordersRouter);
+app.use("/api/settings", settingsRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
