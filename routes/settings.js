@@ -3,7 +3,7 @@ const { Router } = require("express");
 const verifyToken = require("../middleware/verifyToken");
 const checkAdmin = require("../middleware/checkAdmin");
 const { getNailCost, updateNailCost } = require("../controllers/settings");
-const validateSetting = require("../middleware/validateSettings");
+const validateSetting = require("../validators/validateSettings");
 
 const router = Router();
 

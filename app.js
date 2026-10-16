@@ -9,6 +9,7 @@ const usersRouter = require("./routes/users");
 const productsRouter = require("./routes/products");
 const ordersRouter = require("./routes/orders");
 const settingsRouter = require("./routes/settings");
+const shippingRateRouter = require("./routes/shippingRates");
 
 mongoose
   .connect(url)
@@ -25,6 +26,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/shipping-rates", shippingRateRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

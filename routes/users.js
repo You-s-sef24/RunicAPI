@@ -8,9 +8,9 @@ const {
   getProfile,
 } = require("../controllers/users");
 const verifyToken = require("../middleware/verifyToken");
-const validateRegister = require("../middleware/valiateRegister");
-const validateLogin = require("../middleware/validateLogin");
-const validateProfile = require("../middleware/validateProfile");
+const validateRegister = require("../validators/valiateRegister");
+const validateLogin = require("../validators/validateLogin");
+const validateProfile = require("../validators/validateProfile");
 const router = Router();
 
 router.get("/", verifyToken, getAllUsers);

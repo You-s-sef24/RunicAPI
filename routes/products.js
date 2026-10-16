@@ -9,7 +9,7 @@ const {
   updateProduct,
   deleteProduct,
 } = require("../controllers/products");
-const validateProduct = require("../middleware/validateProduct");
+const validateProduct = require("../validators/validateProduct");
 const router = Router();
 
 router.get("/", getProducts);

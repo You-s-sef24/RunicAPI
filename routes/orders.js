@@ -9,7 +9,7 @@ const {
   updateOrderStatus,
   getOrdersByUserId,
 } = require("../controllers/orders");
-const validateOrder = require("../middleware/validateOrder");
+const validateOrder = require("../validators/validateOrder");
 const router = Router();
 
 router.get("/", verifyToken, checkAdmin, getOrders);
