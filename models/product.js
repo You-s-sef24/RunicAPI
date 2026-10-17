@@ -55,14 +55,10 @@ const productSchema = new Schema(
       type: [
         {
           type: String,
-          required: true,
           trim: true,
         },
       ],
-      validate: {
-        validator: (images) => images.length > 0,
-        message: "A product must have at least one image",
-      },
+      default: ["uploads/product.jpg"],
     },
     featured: {
       type: Boolean,

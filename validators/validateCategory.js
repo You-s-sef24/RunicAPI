@@ -32,11 +32,6 @@ const validateCategory = () => [
     .bail()
     .isLength({ min: 10, max: 1000 })
     .withMessage("Arabic description must be between 10 and 1000 characters"),
-
-  body("image")
-    .trim()
-    .notEmpty()
-    .withMessage("Category image is required"),
 ];
 
 const validateCategoryUpdate = () => [
@@ -75,12 +70,6 @@ const validateCategoryUpdate = () => [
     .bail()
     .isLength({ min: 10, max: 1000 })
     .withMessage("Arabic description must be between 10 and 1000 characters"),
-
-  body("image")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Image cannot be empty"),
 ];
 
 module.exports = {

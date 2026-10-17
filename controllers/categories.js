@@ -48,7 +48,12 @@ const addCategory = async (req, res, next) => {
       return res.status(400).json({ errors: results.array() });
     }
 
-    const { name, description, image } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ message: "Image is required" });
+    }
+
+    const { name, description } = req.body;
+    const image = req.file.filename;
 
     const category = await Category.create({
       name,
@@ -79,7 +84,8 @@ const updateCategory = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid category ID" });
     }
 
-    const { name, description, image } = req.body;
+    const { name, description } = req.body;
+    const image = req?.file?.filename;
     const updates = {};
 
     if (name !== undefined) updates.name = name;
