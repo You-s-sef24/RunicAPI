@@ -1,125 +1,375 @@
-# Blog API
+# Runic API
 
-A RESTful backend API for a Facebook-style blog/social feed app, built to practice **Express.js**, **MongoDB**, and **authentication with JWT**. Users can register, log in, create posts, like/unlike posts, and comment on them.
-
-**Live API:** `https://blog-api-production-11d7.up.railway.app`
-
----
+A RESTful backend API for an e-commerce store built with Node.js, Express.js, and MongoDB using Mongoose.
 
 ## Features
 
-- **Authentication** — JWT-based auth with session tracking (login sessions stored in a `Token` collection with auto-expiry, supporting logout/revocation and multi-device sessions)
-- **Posts** — full CRUD, with ownership checks (only the author can edit/delete their own posts)
-- **Likes** — toggle like/unlike on posts, race-condition safe via a unique compound index
-- **Comments** — full CRUD on comments, scoped to a post, with ownership checks
-- **Validation** — request validation via `express-validator` on all write endpoints
-- **Centralized error handling** — a single Express error-handling middleware catches unexpected failures
-
----
+- User registration, login, logout, and profile management.
+- Authentication and admin authorization.
+- Product and category management.
+- English and Arabic product and category content.
+- Product image uploads using Multer.
+- Featured products and bestsellers.
+- Order creation and status management.
+- Shipping rates management.
+- Store settings and nail-cost configuration.
+- Pagination for list endpoints where implemented.
+- Automatic calculation of order subtotal, shipping cost, and total price.
 
 ## Tech Stack
 
-- **Node.js** / **Express**
-- **MongoDB** / **Mongoose**
-- **JWT** (`jsonwebtoken`) for authentication
-- **bcryptjs** for password hashing
-- **express-validator** for input validation
-- **CORS**, **dotenv**
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- Multer
+- express-validator
 
----
+## Project Structure
 
-## Getting Started
+```text
+project/
+├── controllers/
+│   ├── categories.js
+│   ├── orders.js
+│   ├── products.js
+│   ├── settings.js
+│   ├── shippingRate.js
+│   └── users.js
+├── middleware/
+│   ├── checkAdmin.js
+│   ├── upload.js
+│   └── verifyToken.js
+├── models/
+│   ├── category.js
+│   ├── order.js
+│   ├── product.js
+│   ├── settings.js
+│   ├── shippingRate.js
+│   └── user.js
+├── routes/
+├── utils/
+│   ├── calculateSubtotal.js
+│   └── deleteImages.js
+├── validators/
+├── uploads/
+│   ├── category/
+│   └── product/
+├── app.js
+└── server.js
+```
 
-### Prerequisites
-- Node.js installed
-- A MongoDB connection string (local or [MongoDB Atlas](https://www.mongodb.com/atlas))
+## Installation
 
-### Installation
+### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
-cd blog-api
+git clone <your-repository-url>
+cd <project-folder>
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
 ```
 
-### Environment Variables
+Ensure the required packages are installed:
 
-Create a `.env` file in the project root:
-
-```env
-DB_URL=your_mongodb_connection_string
-SECRET_KEY=your_jwt_secret_key
-PORT=3000
+```bash
+npm install express mongoose multer express-validator
 ```
 
-### Run locally
+Install any other dependencies used by your authentication, database, and server configuration.
+
+### 3. Configure environment variables
+
+Create a `.env` file in the project root.
+
+```env
+PORT=3000
+MONGODB_URI=<your-mongodb-connection-string>
+SECRET_KEY=<your-jwt-secret>
+```
+
+These are example variable names. Use the exact names expected by your application.
+
+Never commit real secrets or database credentials.
+
+### 4. Create upload directories
+
+Ensure these directories exist:
+
+```text
+uploads/
+├── category/
+└── product/
+```
+
+### 5. Start the server
+
+Use the scripts defined in your package.json. For example:
+
+```bash
+npm run dev
+```
+
+or:
 
 ```bash
 npm start
 ```
 
-Server runs at `http://localhost:3000` by default.
+## Authentication and Authorization
 
----
+The API uses authentication and authorization middleware.
+
+- Public endpoints: registration and login.
+- Authenticated endpoints: logout, profile management, order creation, and viewing orders.
+- Admin endpoints: product management, category management, order management, shipping-rate management, and settings management.
+
+Protected requests may require this header:
+
+```http
+Authorization: Bearer <your-jwt-token>
+```
 
 ## API Endpoints
 
-### Auth / Users — `/api/users`
+The following examples assume your routers are mounted under `/api`. Adjust the prefixes to match your Express application.
 
-| Method | Endpoint          | Protected | Description                          |
-|--------|--------------------|:---------:|---------------------------------------|
-| POST   | `/register`         | No        | Create a new account                  |
-| POST   | `/login`             | No        | Log in, returns a JWT                 |
-| POST   | `/logout`            | Yes       | Ends the current session              |
-| GET    | `/`                  | Yes       | List all users                        |
+### Users — /api/users
 
-### Posts — `/api/posts`
+| Method | Endpoint  | Description                       |
+| ------ | --------- | --------------------------------- |
+| POST   | /register | Register a new user               |
+| POST   | /login    | Log in                            |
+| POST   | /logout   | Log out                           |
+| GET    | /         | Get all users                     |
+| GET    | /:id      | Get a user profile                |
+| PUT    | /me       | Update the current user's profile |
 
-| Method | Endpoint       | Protected | Description                            |
-|--------|-----------------|:---------:|------------------------------------------|
-| GET    | `/`              | No        | Get all posts                          |
-| POST   | `/`              | Yes       | Create a new post                      |
-| PUT    | `/:id`           | Yes       | Update a post (author only)            |
-| DELETE | `/:id`           | Yes       | Delete a post (author only)            |
+The all-users endpoint requires authentication and checks admin authorization in the controller.
 
-### Likes — `/api/posts/:id/likes`
+### Categories — /api/categories
 
-| Method | Endpoint              | Protected | Description                     |
-|--------|------------------------|:---------:|-----------------------------------|
-| POST   | `/:id/likes`            | Yes       | Toggle like/unlike on a post     |
-| GET    | `/:id/likes`            | No        | Get like count for a post        |
+| Method | Endpoint | Description          |
+| ------ | -------- | -------------------- |
+| GET    | /        | Get all categories   |
+| GET    | /:id     | Get a category by ID |
+| POST   | /        | Create a category    |
+| PATCH  | /:id     | Update a category    |
+| DELETE | /:id     | Delete a category    |
 
-### Comments — `/api/posts/:id/comments`
+Creating or updating a category can include an image uploaded using the field name `image`.
 
-| Method | Endpoint                          | Protected | Description                          |
-|--------|-------------------------------------|:---------:|-----------------------------------------|
-| GET    | `/:id/comments`                      | No        | Get all comments for a post          |
-| POST   | `/:id/comments`                      | Yes       | Add a comment                        |
-| PUT    | `/:id/comments/:commentId`           | Yes       | Update a comment (author only)       |
-| DELETE | `/:id/comments/:commentId`           | Yes       | Delete a comment (author only)       |
-| GET    | `/:id/comments-count`                | No        | Get comment count for a post         |
+### Products — /api/products
 
----
+| Method | Endpoint              | Description               |
+| ------ | --------------------- | ------------------------- |
+| GET    | /                     | Get all products          |
+| GET    | /category/:categoryId | Get products by category  |
+| GET    | /featured             | Get featured products     |
+| GET    | /bestsellers          | Get best-selling products |
+| GET    | /:id                  | Get a product by ID       |
+| POST   | /                     | Create a product          |
+| PUT    | /:id                  | Update a product          |
+| DELETE | /:id                  | Delete a product          |
 
-## Auth Flow
+Product creation and updates support up to five uploaded images using the field name `images`.
 
-1. `POST /api/users/register` — creates a user, password hashed with bcrypt
-2. `POST /api/users/login` — verifies credentials, returns a JWT (90-day expiry) and creates a session record
-3. Include the token on protected requests: `Authorization: Bearer <token>`
-4. `POST /api/users/logout` — deletes the session record, invalidating that token immediately (even though the JWT itself would otherwise still be cryptographically valid)
+Register specific routes such as `/featured`, `/bestsellers`, and `/category/:categoryId` before `/:id`.
 
----
+### Orders — /api/orders
+
+| Method | Endpoint      | Description                    |
+| ------ | ------------- | ------------------------------ |
+| GET    | /             | Get all orders                 |
+| GET    | /user/:userId | Get orders belonging to a user |
+| GET    | /:id          | Get an order by ID             |
+| POST   | /             | Create an order                |
+| PUT    | /:id          | Update an order's status       |
+
+Administrators can retrieve all orders and update order statuses. Users can access their own orders, subject to the authorization checks.
+
+Allowed order statuses:
+
+- `pending`
+- `delivered`
+
+### Shipping Rates — /api/shipping-rates
+
+| Method | Endpoint | Description            |
+| ------ | -------- | ---------------------- |
+| GET    | /        | Get shipping rates     |
+| POST   | /        | Create a shipping rate |
+| PATCH  | /:id     | Update a shipping rate |
+| DELETE | /:id     | Delete a shipping rate |
+
+These routes require authentication and administrator authorization.
+
+### Settings — /api/settings
+
+| Method | Endpoint   | Description          |
+| ------ | ---------- | -------------------- |
+| GET    | /nail-cost | Get the nail cost    |
+| PATCH  | /nail-cost | Update the nail cost |
+
+The nail cost is used when calculating orders that include nails.
+
+## Pagination
+
+List endpoints that implement pagination accept two query parameters:
+
+- `page`: page number, starting at 1.
+- `limit`: number of results per page, defaulting to 10 and capped at 100.
+
+Examples:
+
+```http
+GET /api/products?page=1&limit=10
+GET /api/categories?page=2&limit=10
+GET /api/users?page=1&limit=20
+GET /api/orders?page=2&limit=10
+```
+
+Pagination must be implemented in the corresponding controller before it is available on an endpoint.
+
+## Image Uploads
+
+Multer stores images in the local uploads directory.
+
+Examples of stored paths:
+
+```text
+product/image-name.jpg
+category/image-name.jpg
+```
+
+The database stores relative image paths. The frontend should use the public URL configured by your Express application to display images.
+
+Recommendations:
+
+- Ensure upload directories exist.
+- Set appropriate file-size limits.
+- Validate uploaded file types and contents.
+- Use persistent or cloud storage when local files are not guaranteed to persist.
+- Avoid deleting shared default images when removing products or categories.
 
 ## Data Models
 
-- **User** — name, email (unique), hashed password
-- **Post** — content, userId (ref User), timestamps
-- **Comment** — content, userId, postId, timestamps
-- **Like** — userId, postId (unique compound index — one like per user per post)
-- **Token** — userId, token, device, createdAt (TTL — auto-expires after 90 days)
+### User
 
----
+- name
+- email
+- password
+- isAdmin
+- phone
+- createdAt
+- updatedAt
 
-## Author
+Passwords should be hashed before storage.
 
-Built by Youssef as a backend practice project to learn Express, MongoDB, and JWT-based authentication.
+### Category
+
+- name.en
+- name.ar
+- description.en
+- description.ar
+- image
+- createdAt
+- updatedAt
+
+### Product
+
+- name.en
+- name.ar
+- description.en
+- description.ar
+- price
+- dimensions
+- categoryId
+- images
+- featured
+- createdAt
+- updatedAt
+
+### Order
+
+- userId
+- items
+- shippingAddress
+- government
+- status
+- nails
+- nailsCost
+- subTotal
+- shippingCost
+- total
+- createdAt
+- updatedAt
+
+Each order item stores the product ID, localized product name, price, and quantity.
+
+### Shipping Rate
+
+- government
+- name.en
+- name.ar
+- price
+- isActive
+- createdAt
+- updatedAt
+
+### Settings
+
+- nailCost
+- createdAt
+- updatedAt
+
+## Order Calculation
+
+When a customer creates an order, the backend:
+
+1. Validates the request.
+2. Checks whether shipping is available for the selected government.
+3. Retrieves product information and calculates the subtotal.
+4. Calculates the additional nail cost when applicable.
+5. Retrieves the shipping cost.
+6. Calculates the final order total.
+7. Creates the order with a pending status.
+
+The calculation is:
+
+total = subTotal + nailsCost + shippingCost
+
+Prices and totals should be calculated on the server rather than trusted from client input.
+
+## Error Handling
+
+The controllers pass unexpected errors to Express using `next(err)`.
+
+Common HTTP status codes include:
+
+- 400 — Bad Request
+- 401 — Unauthorized
+- 403 — Forbidden
+- 404 — Not Found
+- 500 — Internal Server Error
+
+The exact error response depends on the controller and error-handling middleware.
+
+## Security Notes
+
+- Hash passwords before saving them.
+- Protect administrative endpoints with authentication and authorization.
+- Validate request bodies and URL parameters.
+- Validate uploaded files and limit their sizes.
+- Keep secrets out of version control.
+- Ensure image deletion cannot access files outside the uploads directory.
+- Configure persistent storage for production deployments.
+- Add appropriate rate limiting and production security protections.
+
+## License
+
+Add your preferred license information here.
