@@ -58,7 +58,7 @@ const productSchema = new Schema(
           trim: true,
         },
       ],
-      default: ["uploads/product.jpg"],
+      default: ["product/default.jpg"],
     },
     featured: {
       type: Boolean,

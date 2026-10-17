@@ -2,6 +2,8 @@ const { default: mongoose } = require("mongoose");
 const Product = require("../models/product");
 const Category = require("../models/category");
 const { validationResult } = require("express-validator");
+const deleteImages = require("../utils/deleteImages");
+const MAX_IMAGES = 5;
 
 const getProducts = async (req, res, next) => {
   try {
@@ -44,15 +46,16 @@ const getProductById = async (req, res, next) => {
 
 const createProduct = async (req, res, next) => {
   try {
-    const {
-      name,
-      description,
-      price,
-      dimensions,
-      categoryId,
-      images,
-      featured,
-    } = req.body;
+    const files = req?.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({ message: "Image is required" });
+    }
+
+    const { name, description, price, dimensions, categoryId, featured } =
+      req.body;
+    const images = files.map((image) => {
+      return `product/${image?.filename}`;
+    });
 
     const results = validationResult(req);
 
@@ -96,31 +99,14 @@ const createProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      description,
-      price,
-      dimensions,
-      categoryId,
-      images,
-      featured,
-    } = req.body;
-
-    const updateds = {};
-    if (name !== undefined) updateds.name = name;
-    if (description !== undefined) updateds.description = description;
-    if (price !== undefined) updateds.price = price;
-    if (categoryId !== undefined) updateds.categoryId = categoryId;
-    if (dimensions !== undefined) updateds.dimensions = dimensions;
-    if (images !== undefined) updateds.images = images;
-    if (featured !== undefined) updateds.featured = featured;
+    const { name, description, price, dimensions, categoryId, featured } =
+      req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid product ID" });
     }
 
     const results = validationResult(req);
-
     if (!results.isEmpty()) {
       return res.status(400).json({
         message: "Validation failed",
@@ -128,24 +114,66 @@ const updateProduct = async (req, res, next) => {
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-      return res.status(400).json({ message: "Invalid category ID" });
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
     }
 
-    const existingCategory = await Category.findById(categoryId);
-
-    if (categoryId && !existingCategory) {
-      return res.status(404).json({ message: "Category not found" });
+    if (categoryId) {
+      const existingCategory = await Category.findById(categoryId);
+      if (!existingCategory) {
+        return res.status(404).json({ message: "Category not found" });
+      }
     }
+
+    let kept = req.body.existingImages ?? [];
+
+    if (!Array.isArray(kept)) {
+      kept = [kept];
+    }
+
+    kept = kept.filter((img) => product.images.includes(img));
+
+    const newImages = (req.files || []).map(
+      (file) => `product/${file.filename}`,
+    );
+
+    const finalImages = [...kept, ...newImages];
+
+    if (finalImages.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "At least one image is required" });
+    }
+    if (finalImages.length > MAX_IMAGES) {
+      return res
+        .status(400)
+        .json({ message: `You can't have more than ${MAX_IMAGES} images` });
+    }
+
+    const updateds = { images: finalImages };
+    if (name !== undefined) updateds.name = name;
+    if (description !== undefined) updateds.description = description;
+    if (price !== undefined) updateds.price = price;
+    if (categoryId !== undefined) updateds.categoryId = categoryId;
+    if (dimensions !== undefined) updateds.dimensions = dimensions;
+    if (featured !== undefined) updateds.featured = featured;
+
+    const removedImages = product.images.filter(
+      (img) => !finalImages.includes(img),
+    );
 
     const updatedProduct = await Product.findByIdAndUpdate(id, updateds, {
       new: true,
       runValidators: true,
     }).populate("categoryId", "name");
 
-    if (!updatedProduct) {
-      return res.status(404).json({ message: "Product not found" });
+    try {
+      await deleteImages(removedImages);
+    } catch (err) {
+      console.error("Failed to delete old product images:", err);
     }
+
     res.status(200).json({
       message: "Product updated successfully",
       product: updatedProduct,
@@ -166,6 +194,13 @@ const deleteProduct = async (req, res, next) => {
     if (!deletedProduct) {
       return res.status(404).json({ message: "Product not found" });
     }
+
+    try {
+      await deleteImages(deletedProduct.images);
+    } catch (err) {
+      console.error("Failed to delete product images:", err);
+    }
+
     res.status(200).json({
       message: "Product deleted successfully",
       product: deletedProduct,

@@ -11,11 +11,26 @@ const {
 } = require("../controllers/products");
 const validateProduct = require("../validators/validateProduct");
 const router = Router();
+const upload = require("../middleware/upload");
 
 router.get("/", getProducts);
 router.get("/:id", getProductById);
-router.post("/", verifyToken, checkAdmin, validateProduct(), createProduct);
-router.put("/:id", verifyToken, checkAdmin, validateProduct(), updateProduct);
+router.post(
+  "/",
+  verifyToken,
+  checkAdmin,
+  upload("product").array("images", 5),
+  validateProduct(),
+  createProduct,
+);
+router.put(
+  "/:id",
+  verifyToken,
+  checkAdmin,
+  upload("product").array("images", 5),
+  validateProduct(),
+  updateProduct,
+);
 router.delete("/:id", verifyToken, checkAdmin, deleteProduct);
 
 module.exports = router;

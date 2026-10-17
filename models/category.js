@@ -37,7 +37,7 @@ const categorySchema = new Schema(
     image: {
       type: String,
       trim: true,
-      default: "uploads/product",
+      default: "category/default.jpg",
     },
   },
   { timestamps: true },

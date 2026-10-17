@@ -53,18 +53,8 @@ const validateProduct = () => {
       .isMongoId()
       .withMessage("Invalid category ID"),
 
-    body("images")
-      .isArray({ min: 1 })
-      .withMessage("A product must have at least one image"),
-
-    body("images.*")
-      .isString()
-      .withMessage("Each image must be a string")
-      .trim()
-      .notEmpty()
-      .withMessage("Image URLs cannot be empty"),
-
     body("featured")
+      .optional()
       .isBoolean({ strict: true })
       .withMessage("Featured must be a boolean value"),
   ];

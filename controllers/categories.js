@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
 const Category = require("../models/category");
+const deleteImages = require("../utils/deleteImages");
 
 const getCategories = async (req, res, next) => {
   try {
@@ -53,7 +54,7 @@ const addCategory = async (req, res, next) => {
     }
 
     const { name, description } = req.body;
-    const image = req.file.filename;
+    const image = `category/${req?.file?.filename}`;
 
     const category = await Category.create({
       name,
@@ -72,25 +73,40 @@ const addCategory = async (req, res, next) => {
 
 const updateCategory = async (req, res, next) => {
   try {
-    const results = validationResult(req);
-
-    if (!results.isEmpty()) {
-      return res.status(400).json({ errors: results.array() });
-    }
-
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid category ID" });
+      return res.status(400).json({
+        message: "Invalid category ID",
+      });
+    }
+
+    const results = validationResult(req);
+
+    if (!results.isEmpty()) {
+      return res.status(400).json({
+        errors: results.array(),
+      });
     }
 
     const { name, description } = req.body;
-    const image = req?.file?.filename;
+
+    const category = await Category.findById(id);
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    const oldImage = category.image;
+    const newImage = req.file ? `category/${req.file.filename}` : undefined;
+
     const updates = {};
 
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
-    if (image !== undefined) updates.image = image;
+    if (newImage !== undefined) updates.image = newImage;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
@@ -98,18 +114,22 @@ const updateCategory = async (req, res, next) => {
       });
     }
 
-    const category = await Category.findByIdAndUpdate(id, updates, {
+    const updatedCategory = await Category.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
     });
 
-    if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+    if (newImage && oldImage && oldImage !== newImage) {
+      try {
+        await deleteImages([oldImage]);
+      } catch (err) {
+        console.error("Failed to delete old category image:", err);
+      }
     }
 
     return res.status(200).json({
       message: "Category updated successfully",
-      category,
+      category: updatedCategory,
     });
   } catch (err) {
     next(err);
@@ -121,13 +141,29 @@ const deleteCategory = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid category ID" });
+      return res.status(400).json({
+        message: "Invalid category ID",
+      });
     }
 
-    const category = await Category.findByIdAndDelete(id);
+    const category = await Category.findById(id);
 
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    const image = category.image;
+
+    await Category.findByIdAndDelete(id);
+
+    if (image) {
+      try {
+        await deleteImages([image]);
+      } catch (err) {
+        console.error("Failed to delete category image:", err);
+      }
     }
 
     return res.status(200).json({
