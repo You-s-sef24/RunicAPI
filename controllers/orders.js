@@ -7,11 +7,21 @@ const calculateSubtotal = require("../utils/calculateSubtotal");
 
 const getOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find().populate("userId", "name email");
-    if (orders.length === 0) {
-      return res.status(200).json({ message: "No orders found", orders });
-    }
-    res.status(200).json({ message: "Orders retrieved successfully", orders });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
+    const orders = await Order.find()
+      .populate("userId", "name email")
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return res.status(200).json({
+      message: orders.length
+        ? "Orders retrieved successfully"
+        : "No orders found",
+      orders,
+    });
   } catch (err) {
     next(err);
   }
@@ -43,18 +53,30 @@ const getOrderById = async (req, res, next) => {
 const getOrdersByUserId = async (req, res, next) => {
   try {
     const { userId } = req.params;
-    if (mongoose.Types.ObjectId.isValid(userId) === false) {
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    if (userId !== req.userId && !req.isAdmin) {
+
+    if (userId !== req.userId.toString() && !req.isAdmin) {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
-    const orders = await Order.find({ userId }).populate(
-      "userId",
-      "name email",
-    );
-    res.status(200).json({ message: "Orders retrieved successfully", orders });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
+    const orders = await Order.find({ userId })
+      .populate("userId", "name email")
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return res.status(200).json({
+      message: orders.length
+        ? "Orders retrieved successfully"
+        : "No orders found",
+      orders,
+    });
   } catch (err) {
     next(err);
   }

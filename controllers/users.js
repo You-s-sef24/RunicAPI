@@ -11,13 +11,18 @@ const getAllUsers = async (req, res, next) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const users = await User.find({}, { password: 0, __v: 0 });
-    if (users.length === 0) {
-      return res.status(200).json({ message: "No users found", users });
-    }
-    return res
-      .status(200)
-      .json({ message: "Users retrieved Successfully", users });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
+    const users = await User.find({}, { password: 0, __v: 0 })
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return res.status(200).json({
+      message: users.length ? "Users retrieved successfully" : "No users found",
+      users,
+    });
   } catch (error) {
     next(error);
   }
@@ -80,7 +85,7 @@ const editProfile = async (req, res, next) => {
 
 const register = async (req, res, next) => {
   try {
-    const { name, email, password ,phone} = req.body;
+    const { name, email, password, phone } = req.body;
 
     const result = validationResult(req);
 

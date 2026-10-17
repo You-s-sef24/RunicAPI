@@ -3,20 +3,26 @@ const Product = require("../models/product");
 const Category = require("../models/category");
 const { validationResult } = require("express-validator");
 const deleteImages = require("../utils/deleteImages");
+const Order = require("../models/order");
 const MAX_IMAGES = 5;
 
 const getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({}, { __v: 0 }).populate(
-      "categoryId",
-      "name",
-    );
-    if (products.length === 0) {
-      return res.status(200).json({ message: "No products found", products });
-    }
-    res
-      .status(200)
-      .json({ message: "Products retrieved successfully", products });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
+    const products = await Product.find({}, { __v: 0 })
+      .populate("categoryId", "name")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return res.status(200).json({
+      message: products.length
+        ? "Products retrieved successfully"
+        : "No products found",
+      products,
+    });
   } catch (err) {
     next(err);
   }
@@ -62,15 +68,19 @@ const getProductsByCategory = async (req, res, next) => {
       });
     }
 
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
     const products = await Product.find({ categoryId }, { __v: 0 })
       .populate("categoryId", "name")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     return res.status(200).json({
       message: products.length
         ? "Products retrieved successfully"
         : "No products found in this category",
-      category,
       products,
     });
   } catch (err) {
@@ -80,9 +90,14 @@ const getProductsByCategory = async (req, res, next) => {
 
 const getFeaturedProducts = async (req, res, next) => {
   try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
     const products = await Product.find({ featured: true }, { __v: 0 })
       .populate("categoryId", "name")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     return res.status(200).json({
       message: products.length
@@ -97,74 +112,53 @@ const getFeaturedProducts = async (req, res, next) => {
 
 const getBestsellers = async (req, res, next) => {
   try {
-    const bestsellers = await Order.aggregate([
-      {
-        $match: {
-          status: "delivered",
-        },
-      },
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
 
-      {
-        $unwind: "$items",
-      },
+    const orders = await Order.find({ status: "delivered" }).select("items");
 
-      {
-        $group: {
-          _id: "$items.productId",
-          totalSold: { $sum: "$items.quantity" },
-        },
-      },
+    const sales = {};
 
-      {
-        $sort: {
-          totalSold: -1,
-        },
-      },
+    for (const order of orders) {
+      for (const item of order.items) {
+        const productId = item.productId.toString();
 
-      {
-        $lookup: {
-          from: Product.collection.name,
-          localField: "_id",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
+        sales[productId] = (sales[productId] || 0) + item.quantity;
+      }
+    }
 
-      { $unwind: "$product" },
+    const sortedProducts = Object.entries(sales).sort((a, b) => b[1] - a[1]);
 
-      {
-        $lookup: {
-          from: Category.collection.name,
-          localField: "product.categoryId",
-          foreignField: "_id",
-          as: "category",
-        },
-      },
+    const startIndex = (page - 1) * limit;
+    const paginatedProducts = sortedProducts.slice(
+      startIndex,
+      startIndex + limit,
+    );
 
-      {
-        $unwind: {
-          path: "$category",
-          preserveNullAndEmptyArrays: true,
-        },
+    const products = await Product.find({
+      _id: {
+        $in: paginatedProducts.map(([productId]) => productId),
       },
+    })
+      .select("-__v")
+      .populate("categoryId", "name");
 
-      {
-        $project: {
-          _id: "$product._id",
-          name: "$product.name",
-          description: "$product.description",
-          price: "$product.price",
-          dimensions: "$product.dimensions",
-          images: "$product.images",
-          featured: "$product.featured",
-          categoryId: {
-            _id: "$category._id",
-            name: "$category.name",
-          },
-          totalSold: 1,
-        },
-      },
-    ]);
+    const productMap = new Map(
+      products.map((product) => [product._id.toString(), product]),
+    );
+
+    const bestsellers = paginatedProducts
+      .map(([productId, totalSold]) => {
+        const product = productMap.get(productId);
+
+        if (!product) return null;
+
+        return {
+          ...product.toObject(),
+          totalSold,
+        };
+      })
+      .filter(Boolean);
 
     return res.status(200).json({
       message: bestsellers.length
