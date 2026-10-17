@@ -44,6 +44,139 @@ const getProductById = async (req, res, next) => {
   }
 };
 
+const getProductsByCategory = async (req, res, next) => {
+  try {
+    const { categoryId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({
+        message: "Invalid category ID",
+      });
+    }
+
+    const category = await Category.findById(categoryId);
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    const products = await Product.find({ categoryId }, { __v: 0 })
+      .populate("categoryId", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      message: products.length
+        ? "Products retrieved successfully"
+        : "No products found in this category",
+      category,
+      products,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getFeaturedProducts = async (req, res, next) => {
+  try {
+    const products = await Product.find({ featured: true }, { __v: 0 })
+      .populate("categoryId", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      message: products.length
+        ? "Featured products retrieved successfully"
+        : "No featured products found",
+      products,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getBestsellers = async (req, res, next) => {
+  try {
+    const bestsellers = await Order.aggregate([
+      {
+        $match: {
+          status: "delivered",
+        },
+      },
+
+      {
+        $unwind: "$items",
+      },
+
+      {
+        $group: {
+          _id: "$items.productId",
+          totalSold: { $sum: "$items.quantity" },
+        },
+      },
+
+      {
+        $sort: {
+          totalSold: -1,
+        },
+      },
+
+      {
+        $lookup: {
+          from: Product.collection.name,
+          localField: "_id",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+
+      { $unwind: "$product" },
+
+      {
+        $lookup: {
+          from: Category.collection.name,
+          localField: "product.categoryId",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$category",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      {
+        $project: {
+          _id: "$product._id",
+          name: "$product.name",
+          description: "$product.description",
+          price: "$product.price",
+          dimensions: "$product.dimensions",
+          images: "$product.images",
+          featured: "$product.featured",
+          categoryId: {
+            _id: "$category._id",
+            name: "$category.name",
+          },
+          totalSold: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      message: bestsellers.length
+        ? "Bestsellers retrieved successfully"
+        : "No bestsellers found",
+      products: bestsellers,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const createProduct = async (req, res, next) => {
   try {
     const files = req?.files || [];
@@ -216,4 +349,7 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  getProductsByCategory,
+  getFeaturedProducts,
+  getBestsellers,
 };

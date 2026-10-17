@@ -8,6 +8,9 @@ const {
   getProductById,
   updateProduct,
   deleteProduct,
+  getProductsByCategory,
+  getFeaturedProducts,
+  getBestsellers,
 } = require("../controllers/products");
 const validateProduct = require("../validators/validateProduct");
 const router = Router();
@@ -15,6 +18,10 @@ const upload = require("../middleware/upload");
 
 router.get("/", getProducts);
 router.get("/:id", getProductById);
+router.get("/category/:categoryId", getProductsByCategory);
+router.get("/featured", getFeaturedProducts);
+router.get("/bestsellers", getBestsellers);
+
 router.post(
   "/",
   verifyToken,
