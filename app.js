@@ -25,7 +25,7 @@ mongoose
 
 app.use(express.json());
 app.use(cors());
-app.use("/uploads", express.static(path.join(__dirname,'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/users", usersRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/orders", ordersRouter);
@@ -38,6 +38,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Something went wrong" });
 });
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
