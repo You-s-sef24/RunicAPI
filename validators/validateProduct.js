@@ -55,7 +55,7 @@ const validateProduct = () => {
 
     body("featured")
       .optional()
-      .isBoolean({ strict: true })
+      .isBoolean()
       .withMessage("Featured must be a boolean value"),
   ];
 };
