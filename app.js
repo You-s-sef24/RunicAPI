@@ -13,7 +13,7 @@ const ordersRouter = require("./routes/orders");
 const settingsRouter = require("./routes/settings");
 const shippingRateRouter = require("./routes/shippingRates");
 const categoryRouter = require("./routes/categories");
-
+const statsRouter = require("./routes/stats");
 mongoose
   .connect(url)
   .then(() => {
@@ -32,6 +32,7 @@ app.use("/api/orders", ordersRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/shipping-rates", shippingRateRouter);
 app.use("/api/category", categoryRouter);
+app.use("/api/stats", statsRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);
