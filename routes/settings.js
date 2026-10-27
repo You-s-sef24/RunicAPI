@@ -7,7 +7,7 @@ const validateSetting = require("../validators/validateSettings");
 
 const router = Router();
 
-router.get("/nail-cost", checkAdmin, getNailCost);
+router.get("/nail-cost",verifyToken ,checkAdmin, getNailCost);
 router.patch(
   "/nail-cost",
   verifyToken,
