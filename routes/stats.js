@@ -7,6 +7,7 @@ const {
   topProducts,
   productsByCategory,
   priceDistribution,
+  summary,
 } = require("../controllers/stats");
 
 const router = Router();
