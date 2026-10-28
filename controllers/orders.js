@@ -4,23 +4,27 @@ const { validationResult } = require("express-validator");
 const ShippingRate = require("../models/shippingRate");
 const Setting = require("../models/settings");
 const calculateSubtotal = require("../utils/calculateSubtotal");
+const { getPagination, paginationMeta } = require("../utils/pagination");
 
 const getOrders = async (req, res, next) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
-    const orders = await Order.find()
-      .populate("userId", "name email")
-      .sort({ createdAt: -1, _id: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [orders, total] = await Promise.all([
+      Order.find()
+        .populate("userId", "name email")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit),
+      Order.countDocuments(),
+    ]);
 
     return res.status(200).json({
       message: orders.length
         ? "Orders retrieved successfully"
         : "No orders found",
       orders,
+      ...paginationMeta(page, limit, total),
     });
   } catch (err) {
     next(err);

@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { validationResult } = require("express-validator");
 const { default: mongoose } = require("mongoose");
+const { getPagination, paginationMeta } = require("../utils/pagination");
 
 const getAllUsers = async (req, res, next) => {
   try {
@@ -11,17 +12,20 @@ const getAllUsers = async (req, res, next) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
-    const users = await User.find({}, { password: 0, __v: 0 })
-      .sort({ createdAt: -1, _id: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [users, total] = await Promise.all([
+      User.find({}, { password: 0, __v: 0 })
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(),
+    ]);
 
     return res.status(200).json({
       message: users.length ? "Users retrieved successfully" : "No users found",
       users,
+      ...paginationMeta(page, limit, total),
     });
   } catch (error) {
     next(error);

@@ -4,24 +4,28 @@ const Category = require("../models/category");
 const { validationResult } = require("express-validator");
 const deleteImages = require("../utils/deleteImages");
 const Order = require("../models/order");
+const { getPagination, paginationMeta } = require("../utils/pagination");
 const MAX_IMAGES = 5;
 
 const getProducts = async (req, res, next) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
-    const products = await Product.find({}, { __v: 0 })
-      .populate("categoryId", "name")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [products, total] = await Promise.all([
+      Product.find({}, { __v: 0 })
+        .populate("categoryId", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Product.countDocuments(),
+    ]);
 
     return res.status(200).json({
       message: products.length
         ? "Products retrieved successfully"
         : "No products found",
       products,
+      ...paginationMeta(page, limit, total),
     });
   } catch (err) {
     next(err);
@@ -55,33 +59,31 @@ const getProductsByCategory = async (req, res, next) => {
     const { categoryId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-      return res.status(400).json({
-        message: "Invalid category ID",
-      });
+      return res.status(400).json({ message: "Invalid category ID" });
     }
 
     const category = await Category.findById(categoryId);
-
     if (!category) {
-      return res.status(404).json({
-        message: "Category not found",
-      });
+      return res.status(404).json({ message: "Category not found" });
     }
 
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
-    const products = await Product.find({ categoryId }, { __v: 0 })
-      .populate("categoryId", "name")
-      .sort({ createdAt: -1, _id: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [products, total] = await Promise.all([
+      Product.find({ categoryId }, { __v: 0 })
+        .populate("categoryId", "name")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit),
+      Product.countDocuments({ categoryId }),
+    ]);
 
     return res.status(200).json({
       message: products.length
         ? "Products retrieved successfully"
         : "No products found in this category",
       products,
+      ...paginationMeta(page, limit, total),
     });
   } catch (err) {
     next(err);
@@ -90,20 +92,23 @@ const getProductsByCategory = async (req, res, next) => {
 
 const getFeaturedProducts = async (req, res, next) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
-    const products = await Product.find({ featured: true }, { __v: 0 })
-      .populate("categoryId", "name")
-      .sort({ createdAt: -1, _id: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [products, total] = await Promise.all([
+      Product.find({ featured: true }, { __v: 0 })
+        .populate("categoryId", "name")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit),
+      Product.countDocuments({ featured: true }),
+    ]);
 
     return res.status(200).json({
       message: products.length
         ? "Featured products retrieved successfully"
         : "No featured products found",
       products,
+      ...paginationMeta(page, limit, total),
     });
   } catch (err) {
     next(err);
@@ -112,8 +117,7 @@ const getFeaturedProducts = async (req, res, next) => {
 
 const getBestsellers = async (req, res, next) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
     const orders = await Order.find({ status: "delivered" }).select("items");
 
@@ -129,11 +133,7 @@ const getBestsellers = async (req, res, next) => {
 
     const sortedProducts = Object.entries(sales).sort((a, b) => b[1] - a[1]);
 
-    const startIndex = (page - 1) * limit;
-    const paginatedProducts = sortedProducts.slice(
-      startIndex,
-      startIndex + limit,
-    );
+    const paginatedProducts = sortedProducts.slice(skip, skip + limit);
 
     const products = await Product.find({
       _id: {
@@ -165,6 +165,7 @@ const getBestsellers = async (req, res, next) => {
         ? "Bestsellers retrieved successfully"
         : "No bestsellers found",
       products: bestsellers,
+      ...paginationMeta(page, limit, sortedProducts.length),
     });
   } catch (err) {
     next(err);

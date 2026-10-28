@@ -2,22 +2,23 @@ const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
 const Category = require("../models/category");
 const deleteImages = require("../utils/deleteImages");
+const { getPagination, paginationMeta } = require("../utils/pagination");
 
 const getCategories = async (req, res, next) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const { page, limit, skip } = getPagination(req.query);
 
-    const categories = await Category.find()
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const [categories, total] = await Promise.all([
+      Category.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Category.countDocuments(),
+    ]);
 
     return res.status(200).json({
       message: categories.length
         ? "Categories retrieved successfully"
         : "No categories found",
       categories,
+      ...paginationMeta(page, limit, total),
     });
   } catch (err) {
     next(err);
