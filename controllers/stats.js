@@ -1,6 +1,7 @@
 const Order = require("../models/order");
 const Product = require("../models/product");
 const Category = require("../models/category");
+const User = require("../models/user");
 
 const STATUSES = ["pending", "delivered"];
 
@@ -94,9 +95,34 @@ const productsByCategory = async (req, res, next) => {
   }
 };
 
+const summary = async (req, res, next) => {
+  try {
+    const [revenue, pendingOrders, totalUsers, totalProducts] =
+      await Promise.all([
+        Order.aggregate([
+          { $match: { status: "delivered" } },
+          { $group: { _id: null, total: { $sum: "$total" } } },
+        ]),
+        Order.countDocuments({ status: "pending" }),
+        User.countDocuments({ isAdmin: { $ne: true } }),
+        Product.countDocuments(),
+      ]);
+
+    res.json({
+      totalRevenue: revenue[0]?.total || 0,
+      pendingOrders,
+      totalUsers,
+      totalProducts,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   productsByCategory,
   topProducts,
   priceDistribution,
   ordersByStatus,
+  summary,
 };

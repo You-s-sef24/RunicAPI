@@ -17,5 +17,6 @@ router.get("/orders-by-status", ordersByStatus);
 router.get("/top-products", topProducts);
 router.get("/products-by-category", productsByCategory);
 router.get("/price-distribution", priceDistribution);
+router.get("/summary", summary);
 
 module.exports = router;
